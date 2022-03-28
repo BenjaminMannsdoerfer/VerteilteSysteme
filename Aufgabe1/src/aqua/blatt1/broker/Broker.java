@@ -87,6 +87,10 @@ public class Broker {
         ReadWriteLock lock = new ReentrantReadWriteLock();
         lock.readLock().lock();
         String id = "tank" + clientCollection.size();
+        InetSocketAddress neighborLeft;
+        InetSocketAddress neighborRight;
+        neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
+        neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
         System.out.println("register " + id);
         lock.readLock().unlock();
         lock.writeLock().lock();
@@ -94,7 +98,8 @@ public class Broker {
         lock.writeLock().unlock();
         // Add fish per register
         lock.readLock().lock();
-        endpoint.send(address, new RegisterResponse(id));
+        endpoint.send(neighborLeft, new RegisterResponse(id));
+        endpoint.send(neighborRight, new RegisterResponse(id));
         lock.readLock().unlock();
     }
 
@@ -102,10 +107,24 @@ public class Broker {
         ReadWriteLock lock = new ReentrantReadWriteLock();
         lock.readLock().lock();
         System.out.println("deregister " + clientCollection.indexOf(address));
-        lock.readLock().lock();
+        InetSocketAddress neighborLeft;
+        InetSocketAddress neighborRight;
+        String neighborLeftId;
+        String neighborRightId;
+        if(clientCollection.size() != 0) {
+            neighborLeftId = "tank" + (clientCollection.indexOf(address) + 1);
+            neighborRightId = "tank" + (clientCollection.indexOf(address) - 1);
+        } else {
+            neighborLeftId = "tank" + clientCollection.indexOf(address);
+            neighborRightId = "tank" + clientCollection.indexOf(address);
+        }
+        neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
+        neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
+        lock.readLock().unlock();
         lock.writeLock().lock();
         clientCollection.remove(clientCollection.indexOf(address));
         lock.writeLock().unlock();
+        lock.readLock().lock();
     }
 
     private synchronized void handoffFish(HandoffRequest handoffRequest, InetSocketAddress address) {
