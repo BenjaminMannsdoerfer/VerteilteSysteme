@@ -102,7 +102,7 @@ public class Broker {
         ReadWriteLock lock = new ReentrantReadWriteLock();
         lock.readLock().lock();
         System.out.println("deregister " + clientCollection.indexOf(address));
-        lock.readLock().lock();
+        lock.readLock().unlock();
         lock.writeLock().lock();
         clientCollection.remove(clientCollection.indexOf(address));
         lock.writeLock().unlock();
