@@ -38,12 +38,10 @@ public class Broker {
     }
 
     private class BrokerTask implements Runnable {
-        ClientCollection<InetSocketAddress> clientCollection;
         Serializable payload;
         InetSocketAddress sender;
 
-        private BrokerTask(Serializable payload, InetSocketAddress sender, ClientCollection<InetSocketAddress> clientCollection) {
-            this.clientCollection = clientCollection;
+        private BrokerTask(Serializable payload, InetSocketAddress sender) {
             this.payload = payload;
             this.sender = sender;
         }
@@ -78,7 +76,7 @@ public class Broker {
             if (message.getPayload() instanceof PoisonPill) {
                 running = false;
             }
-            executor.execute(new BrokerTask(message.getPayload(), message.getSender(), clientCollection));
+            executor.execute(new BrokerTask(message.getPayload(), message.getSender()));
         }
         executor.shutdown();
     }
@@ -125,6 +123,9 @@ public class Broker {
         clientCollection.remove(clientCollection.indexOf(address));
         lock.writeLock().unlock();
         lock.readLock().lock();
+        endpoint.send(neighborLeft, neighborLeftId);
+        endpoint.send(neighborRight, neighborRightId);
+        lock.readLock().unlock();
     }
 
     private synchronized void handoffFish(HandoffRequest handoffRequest, InetSocketAddress address) {
