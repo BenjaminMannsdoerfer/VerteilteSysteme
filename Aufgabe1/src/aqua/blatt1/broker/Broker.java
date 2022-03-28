@@ -6,6 +6,7 @@ import aqua.blatt1.common.msgtypes.DeregisterRequest;
 import aqua.blatt1.common.msgtypes.HandoffRequest;
 import aqua.blatt1.common.msgtypes.RegisterRequest;
 import aqua.blatt1.common.msgtypes.RegisterResponse;
+import blatt2.broker.PoisonPill;
 import messaging.Endpoint;
 import messaging.Message;
 
@@ -61,12 +62,15 @@ public class Broker {
 
     // dispatcher
     public void broker() {
-        executor.execute(() -> {
-            JOptionPane.showMessageDialog(null, "Press ->OK<- when you want to stop");
+        /*executor.execute(() -> {
+            JOptionPane.showMessageDialog(null, "Press OK button to stop server");
             running = false;
-        });
+        });*/
         while (running) {
             Message message = endpoint.blockingReceive();
+            if (message.getPayload() instanceof PoisonPill) {
+                running = false;
+            }
             executor.execute(new BrokerTask(message.getPayload(), message.getSender(), clientCollection));
         }
         executor.shutdown();
