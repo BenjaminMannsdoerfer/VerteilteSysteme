@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Broker {
-    private boolean running = true;
+    private volatile boolean running = true;
     private final Endpoint endpoint;
     private final ClientCollection<InetSocketAddress> clientCollection;
     private static final int NUM_THREADS = 5;
@@ -60,12 +60,19 @@ public class Broker {
         }
     }
 
-    // dispatcher
-    public void broker() {
-        /*executor.execute(() -> {
+    private class StopTask implements Runnable {
+
+        @Override
+        public void run() {
             JOptionPane.showMessageDialog(null, "Press OK button to stop server");
             running = false;
-        });*/
+        }
+    }
+
+    // dispatcher
+    public void broker() {
+        //Thread thread = new Thread(new StopTask());
+        //thread.start();
         while (running) {
             Message message = endpoint.blockingReceive();
             if (message.getPayload() instanceof PoisonPill) {
@@ -77,30 +84,42 @@ public class Broker {
     }
 
     private synchronized void register(InetSocketAddress address) {
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+        lock.readLock().lock();
         String id = "tank" + clientCollection.size();
         System.out.println("register " + id);
+        lock.readLock().unlock();
+        lock.writeLock().lock();
         clientCollection.add(id, address);
+        lock.writeLock().unlock();
         // Add fish per register
+        lock.readLock().lock();
         endpoint.send(address, new RegisterResponse(id));
+        lock.readLock().unlock();
     }
 
     private synchronized void deregister(InetSocketAddress address) {
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+        lock.readLock().lock();
         System.out.println("deregister " + clientCollection.indexOf(address));
+        lock.readLock().lock();
+        lock.writeLock().lock();
         clientCollection.remove(clientCollection.indexOf(address));
+        lock.writeLock().unlock();
     }
 
     private synchronized void handoffFish(HandoffRequest handoffRequest, InetSocketAddress address) {
         ReadWriteLock lock = new ReentrantReadWriteLock();
-        lock.writeLock().lock();
+        lock.readLock().lock();
         InetSocketAddress neighbor;
         if (handoffRequest.getFish().getDirection() == Direction.LEFT && handoffRequest.getFish().getX() == 0) {
             neighbor = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
         } else {
             neighbor = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
         }
-        System.out.println("Fish entered");
         System.out.println(clientCollection.getClient(clientCollection.indexOf(address)));
         endpoint.send(neighbor, handoffRequest);
-        lock.writeLock().unlock();
+        lock.readLock().unlock();
+        System.out.println("Fish entered");
     }
 }
