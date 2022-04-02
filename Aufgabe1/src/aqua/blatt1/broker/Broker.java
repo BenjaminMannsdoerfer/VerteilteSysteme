@@ -2,10 +2,7 @@ package aqua.blatt1.broker;
 
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.Properties;
-import aqua.blatt1.common.msgtypes.DeregisterRequest;
-import aqua.blatt1.common.msgtypes.HandoffRequest;
-import aqua.blatt1.common.msgtypes.RegisterRequest;
-import aqua.blatt1.common.msgtypes.RegisterResponse;
+import aqua.blatt1.common.msgtypes.*;
 import blatt2.broker.PoisonPill;
 import messaging.Endpoint;
 import messaging.Message;
@@ -83,49 +80,49 @@ public class Broker {
 
     private synchronized void register(InetSocketAddress address) {
         ReadWriteLock lock = new ReentrantReadWriteLock();
-        lock.readLock().lock();
+        lock.writeLock().lock();
         String id = "tank" + clientCollection.size();
-        InetSocketAddress neighborLeft;
-        InetSocketAddress neighborRight;
-        neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
-        neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
-        System.out.println("register " + id);
-        lock.readLock().unlock();
+        lock.writeLock().unlock();
         lock.writeLock().lock();
         clientCollection.add(id, address);
         lock.writeLock().unlock();
-        // Add fish per register
         lock.readLock().lock();
-        endpoint.send(neighborLeft, new RegisterResponse(id));
-        endpoint.send(neighborRight, new RegisterResponse(id));
+        InetSocketAddress neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
+        InetSocketAddress neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
+        if(clientCollection.size() == 1) {
+            endpoint.send(address, new NeighborUpdate(address, address));
+        } else {
+            endpoint.send(address, new NeighborUpdate(neighborLeft, neighborRight));
+            endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getLeftNeighorOf(clientCollection.indexOf(neighborLeft)), address));
+            endpoint.send(neighborRight, new NeighborUpdate(address, clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborRight))));
+        }
+        System.out.println("register " + id);
+        // Add fish per register
+        endpoint.send(address, new RegisterResponse(id));
         lock.readLock().unlock();
+
+
     }
 
     private synchronized void deregister(InetSocketAddress address) {
         ReadWriteLock lock = new ReentrantReadWriteLock();
         lock.readLock().lock();
-        System.out.println("deregister " + clientCollection.indexOf(address));
+        System.out.println("deregister tank" + clientCollection.indexOf(address));
         InetSocketAddress neighborLeft;
         InetSocketAddress neighborRight;
-        String neighborLeftId;
-        String neighborRightId;
-        if(clientCollection.size() != 0) {
-            neighborLeftId = "tank" + (clientCollection.indexOf(address) + 1);
-            neighborRightId = "tank" + (clientCollection.indexOf(address) - 1);
+        // mind. 2 Clients
+        if(clientCollection.size() != 1) {
+            neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
+            neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
+            endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborLeft)), neighborRight));
+            endpoint.send(neighborLeft, new NeighborUpdate(neighborLeft, clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborRight))));
         } else {
-            neighborLeftId = "tank" + clientCollection.indexOf(address);
-            neighborRightId = "tank" + clientCollection.indexOf(address);
+            endpoint.send(address, new NeighborUpdate(address, address));
         }
-        neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
-        neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
         lock.readLock().unlock();
         lock.writeLock().lock();
         clientCollection.remove(clientCollection.indexOf(address));
         lock.writeLock().unlock();
-        lock.readLock().lock();
-        endpoint.send(neighborLeft, neighborLeftId);
-        endpoint.send(neighborRight, neighborRightId);
-        lock.readLock().unlock();
     }
 
     private synchronized void handoffFish(HandoffRequest handoffRequest, InetSocketAddress address) {
