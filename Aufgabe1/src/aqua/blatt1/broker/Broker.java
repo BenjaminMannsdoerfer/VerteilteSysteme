@@ -89,8 +89,12 @@ public class Broker {
         lock.readLock().lock();
         InetSocketAddress neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
         InetSocketAddress neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
+        System.out.println(id);
+        System.out.println(neighborLeft);
+        System.out.println(neighborRight);
         if(clientCollection.size() == 1) {
             endpoint.send(address, new NeighborUpdate(address, address));
+            endpoint.send(address, new Token());
         } else {
             endpoint.send(address, new NeighborUpdate(neighborLeft, neighborRight));
             endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getLeftNeighorOf(clientCollection.indexOf(neighborLeft)), address));

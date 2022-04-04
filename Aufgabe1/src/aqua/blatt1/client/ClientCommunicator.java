@@ -33,10 +33,16 @@ public class ClientCommunicator {
 
 		public void handOff(FishModel fish, TankModel tankModel) {
 			if (fish.getDirection() == Direction.LEFT && fish.getX() == 0) {
-				endpoint.send(tankModel.getNeighborAddressRight(), new HandoffRequest(fish));
-			} else {
+				System.out.println("entered from left");
 				endpoint.send(tankModel.getNeighborAddressLeft(), new HandoffRequest(fish));
+			} else {
+				System.out.println("entered from right");
+				endpoint.send(tankModel.getNeighborAddressRight(), new HandoffRequest(fish));
 			}
+		}
+
+		public void sendToken(InetSocketAddress address) {
+			endpoint.send(address, new Token());
 		}
 	}
 
@@ -61,6 +67,10 @@ public class ClientCommunicator {
 				if (msg.getPayload() instanceof NeighborUpdate) {
 					tankModel.setNeighborAddressLeft(((NeighborUpdate) msg.getPayload()).getLeftNeighborAddress());
 					tankModel.setNeighborAddressRight(((NeighborUpdate) msg.getPayload()).getRightNeighborAddress());
+				}
+
+				if (msg.getPayload() instanceof Token) {
+					tankModel.receiveToken();
 				}
 			}
 			System.out.println("Receiver stopped.");
