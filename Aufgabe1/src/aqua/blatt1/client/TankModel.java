@@ -81,7 +81,6 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	private synchronized void updateFishies() {
 		for (Iterator<FishModel> it = iterator(); it.hasNext();) {
 			FishModel fish = it.next();
-
 			fish.update();
 
 			if (fish.hitsEdge()) {
@@ -131,7 +130,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 			}
 		};
 		this.timer = new Timer();
-		long delay = 5000L;
+		long delay = 2000L;
 		timer.schedule(task, delay);
 	}
 

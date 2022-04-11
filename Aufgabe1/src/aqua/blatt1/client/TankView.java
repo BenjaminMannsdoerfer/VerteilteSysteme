@@ -52,6 +52,9 @@ public class TankView extends JPanel implements Observer {
 		Graphics2D g2d = (Graphics2D) g;
 
 		for (FishModel fishModel : tankModel) {
+			if (tankModel.hasToken()) {
+				drawBorders(g2d);
+			}
 			g2d.drawImage(fishView.getImage(fishModel), fishModel.getX(), fishModel.getY(), null);
 			g2d.drawString(fishModel.getId(), fishModel.getX(), fishModel.getY());
 		}
