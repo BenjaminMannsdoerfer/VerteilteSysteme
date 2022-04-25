@@ -44,6 +44,18 @@ public class ClientCommunicator {
 		public void sendToken(InetSocketAddress address) {
 			endpoint.send(address, new Token());
 		}
+
+		public void sendSnapshotToken(InetSocketAddress address, SnapshotToken token) {
+			endpoint.send(address, token);
+		}
+
+		// Die Klassen
+		// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
+		// den SnapshotMarker senden bzw. empfangen können.
+
+		public void sendSnapshotMarker(InetSocketAddress address) {
+			endpoint.send(address, new SnapshotMarker());
+		}
 	}
 
 	public class ClientReceiver extends Thread {
@@ -68,10 +80,24 @@ public class ClientCommunicator {
 					tankModel.setNeighborAddressLeft(((NeighborUpdate) msg.getPayload()).getLeftNeighborAddress());
 					tankModel.setNeighborAddressRight(((NeighborUpdate) msg.getPayload()).getRightNeighborAddress());
 				}
-
-				if (msg.getPayload() instanceof Token) {
+				if (msg.getPayload() instanceof Token)
 					tankModel.receiveToken();
+
+				// Die Klassen
+				// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
+				// den SnapshotMarker senden bzw. empfangen können.
+
+				if (msg.getPayload() instanceof SnapshotMarker) {
+					// TODO Empfängt ein Klient einen SnapshotMarker, dann agiert er entsprechend dem
+					// TODO Algorithmus von Lamport zum Ermitteln seinen lokalen Schnappschusses.
+					tankModel.receiveSnapshotMarker(msg.getSender());
 				}
+
+				if (msg.getPayload() instanceof SnapshotToken) {
+					tankModel.receiveSnapshotToken((SnapshotToken) msg.getPayload());
+				}
+
+
 			}
 			System.out.println("Receiver stopped.");
 		}

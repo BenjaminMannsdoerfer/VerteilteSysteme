@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
+import aqua.blatt1.common.msgtypes.SnapshotToken;
 
 public class TankModel extends Observable implements Iterable<FishModel> {
 
@@ -21,7 +22,14 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	private InetSocketAddress addressLeft;
 	private InetSocketAddress addressRight;
 	private boolean checkToken = Boolean.TRUE;
-	private Timer timer;
+	private final Timer timer = new Timer();
+	private enum RecordingMode { IDLE, LEFT, RIGHT, BOTH }
+	private RecordingMode mode = RecordingMode.IDLE;
+	private int arrivingFish;
+	private int totalFishies;
+	private boolean initiator = false;
+	private int snapshot;
+	private boolean capture = false;
 
 	public TankModel(ClientCommunicator.ClientForwarder forwarder) {
 		this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
@@ -64,6 +72,24 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	synchronized void receiveFish(FishModel fish) {
 		fish.setToStart();
 		fishies.add(fish);
+		// Befindet sich ein Kanal im Aufzeichnungsmodus, so müssen auf diesem Kanal
+		// ankommende Fische dem lokalen Zustand hinzugefügt werden. Passen Sie hierfür
+		// die Methode TankModel.receiveFish() entsprechend an.
+		switch (mode) {
+			case IDLE:
+				break;
+			case RIGHT:
+				if (fish.getDirection() == Direction.RIGHT)
+					arrivingFish++;
+				break;
+			case LEFT:
+				if (fish.getDirection() == Direction.LEFT)
+					arrivingFish++;
+				break;
+			case BOTH:
+				arrivingFish++;
+				break;
+		}
 	}
 
 	public String getId() {
@@ -73,6 +99,8 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	public synchronized int getFishCounter() {
 		return fishCounter;
 	}
+
+	public synchronized int getSnapshot() { return snapshot; }
 
 	public synchronized Iterator<FishModel> iterator() {
 		return fishies.iterator();
@@ -87,11 +115,24 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 				if (!hasToken()) {
 					fish.reverse();
 				} else {
+					switch (mode) {
+						case IDLE:
+							break;
+						case RIGHT:
+							if (fish.getDirection() == Direction.RIGHT)
+								arrivingFish--;
+							break;
+						case LEFT:
+							if (fish.getDirection() == Direction.LEFT)
+								arrivingFish--;
+							break;
+						case BOTH:
+							arrivingFish--;
+							break;
+					}
 					forwarder.handOff(fish,this);
 				}
 			}
-
-
 			if (fish.disappears())
 				it.remove();
 		}
@@ -129,7 +170,6 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 				forwarder.sendToken(getNeighborAddressLeft());
 			}
 		};
-		this.timer = new Timer();
 		long delay = 2000L;
 		timer.schedule(task, delay);
 	}
@@ -138,4 +178,71 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 		return checkToken;
 	}
 
+	public void initiateSnapshot(InetSocketAddress address) {
+		if (mode == RecordingMode.IDLE) {
+			if (address.getHostName().equals("Snapshot")) {
+				initiator = true;
+				mode = RecordingMode.BOTH;
+			} else if (address.equals(getNeighborAddressLeft())) {
+				mode = RecordingMode.RIGHT;
+			} else if (address.equals(getNeighborAddressRight())) {
+				mode = RecordingMode.LEFT;
+			}
+			totalFishies = 0;
+			arrivingFish = 0;
+			localSnapshot();
+			forwarder.sendSnapshotMarker(getNeighborAddressLeft());
+			forwarder.sendSnapshotMarker(getNeighborAddressRight());
+		} else {
+			if (mode == RecordingMode.BOTH) {
+				if (address.equals(getNeighborAddressLeft())) {
+					mode = RecordingMode.RIGHT;
+				} else if (address.equals(getNeighborAddressRight())) {
+					mode = RecordingMode.LEFT;
+				}
+			}
+			else if ((mode == RecordingMode.LEFT && address.equals(getNeighborAddressLeft())) ||
+					(mode == RecordingMode.RIGHT && address.equals(getNeighborAddressRight()))) {
+				mode = RecordingMode.IDLE;
+				snapshot = totalFishies + arrivingFish;
+				if (initiator) {
+					forwarder.sendSnapshotToken(getNeighborAddressLeft(), new SnapshotToken());
+				}
+			}
+		}
+
+		// speichere den lokalen Zustand;
+		// starte Aufzeichnungsmodus für alle Eingangskanäle;
+		// sende Markierungen in alle Ausgangskanäle.
+	}
+
+	private void localSnapshot() {
+		this.forEach(fish -> {
+			if (!fish.leavingTank())
+				totalFishies++;
+		});
+	}
+
+	public void setCapture() {
+		this.capture = false;
+	}
+
+	public boolean isCapture() {
+		return capture;
+	}
+
+	public void receiveSnapshotToken(SnapshotToken payload) {
+		payload.setSnapshot(snapshot);
+		if (initiator) {
+			snapshot = payload.getSnapshot();
+			capture = true;
+			initiator = false;
+		} else {
+			forwarder.sendSnapshotToken(getNeighborAddressLeft(), payload);
+		}
+	}
+
+	public void receiveSnapshotMarker(InetSocketAddress address) {
+		initiateSnapshot(address);
+	}
 }

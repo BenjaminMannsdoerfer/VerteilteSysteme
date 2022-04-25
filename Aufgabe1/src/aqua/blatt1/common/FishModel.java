@@ -75,6 +75,11 @@ public final class FishModel implements Serializable {
 				|| (direction == Direction.RIGHT && x == TankModel.WIDTH);
 	}
 
+	public boolean leavingTank() {
+		return (direction == Direction.LEFT && x <= 0)
+				|| (direction == Direction.RIGHT && x >= TankModel.WIDTH - xSize);
+	}
+
 	public void update() {
 		x += direction.getVector();
 

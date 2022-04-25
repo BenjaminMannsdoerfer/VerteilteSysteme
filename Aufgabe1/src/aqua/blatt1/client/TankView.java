@@ -9,8 +9,7 @@ import java.awt.event.MouseEvent;
 import java.util.Observable;
 import java.util.Observer;
 
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 
 import aqua.blatt1.common.FishModel;
 
@@ -42,6 +41,10 @@ public class TankView extends JPanel implements Observer {
 		});
 	}
 
+	// TODO Erweitern Sie die Klasse TankView so, dass ein im TankModel vorliegender globaler
+	//  Schnappschuss angezeigt wird. Für die Anzeige können Sie beispielsweise die
+	//  Methode JOptionPane.showMessageDialog() verwenden.
+
 	@SuppressWarnings("unused")
 	private void drawBorders(Graphics2D g2d) {
 		g2d.drawLine(0, 0, 0, TankModel.HEIGHT);
@@ -69,6 +72,14 @@ public class TankView extends JPanel implements Observer {
 
 	@Override
 	public void update(Observable o, Object arg) {
+		if (tankModel.isCapture()) {
+			showSnapshot();
+		}
 		SwingUtilities.invokeLater(repaintRunnable);
+	}
+
+	private void showSnapshot() {
+		tankModel.setCapture();
+		new Thread(() -> JOptionPane.showMessageDialog(new JPanel(), "Total fishies: " + tankModel.getSnapshot())).start();
 	}
 }
