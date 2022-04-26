@@ -41,10 +41,6 @@ public class TankView extends JPanel implements Observer {
 		});
 	}
 
-	// TODO Erweitern Sie die Klasse TankView so, dass ein im TankModel vorliegender globaler
-	//  Schnappschuss angezeigt wird. Für die Anzeige können Sie beispielsweise die
-	//  Methode JOptionPane.showMessageDialog() verwenden.
-
 	@SuppressWarnings("unused")
 	private void drawBorders(Graphics2D g2d) {
 		g2d.drawLine(0, 0, 0, TankModel.HEIGHT);

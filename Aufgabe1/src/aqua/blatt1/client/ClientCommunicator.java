@@ -49,9 +49,9 @@ public class ClientCommunicator {
 			endpoint.send(address, token);
 		}
 
-		// Die Klassen
-		// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
-		// den SnapshotMarker senden bzw. empfangen können.
+		public void sendLocationRequest(InetSocketAddress address, String fishId) {
+			endpoint.send(address, new LocationRequest(fishId));
+		}
 
 		public void sendSnapshotMarker(InetSocketAddress address) {
 			endpoint.send(address, new SnapshotMarker());
@@ -83,18 +83,16 @@ public class ClientCommunicator {
 				if (msg.getPayload() instanceof Token)
 					tankModel.receiveToken();
 
-				// Die Klassen
-				// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
-				// den SnapshotMarker senden bzw. empfangen können.
-
 				if (msg.getPayload() instanceof SnapshotMarker) {
-					// TODO Empfängt ein Klient einen SnapshotMarker, dann agiert er entsprechend dem
-					// TODO Algorithmus von Lamport zum Ermitteln seinen lokalen Schnappschusses.
 					tankModel.receiveSnapshotMarker(msg.getSender());
 				}
 
 				if (msg.getPayload() instanceof SnapshotToken) {
 					tankModel.receiveSnapshotToken((SnapshotToken) msg.getPayload());
+				}
+
+				if (msg.getPayload() instanceof LocationRequest) {
+					tankModel.locateFishGlobally((String) msg.getPayload());
 				}
 
 

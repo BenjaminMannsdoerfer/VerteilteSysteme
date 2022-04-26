@@ -48,10 +48,6 @@ public class AquaGui extends JFrame implements Runnable, Observer {
 
 		JMenuItem gsMenuItem = new JMenuItem("Global Snapshot");
 		toolsMenu.add(gsMenuItem);
-
-		// Ersetzen Sie in der Klasse AquaGui im Menüpunkt Global Snapshot den
-		//  NotImplementedYetController durch einen SnapshotController, der die
-		//  Methode TankModel.initiateSnapshot() aufruft.
 		gsMenuItem.addActionListener(new SnapshotController(tankModel));
 
 		searchMenu = new JMenu("Toggle Fish Color...");
@@ -67,7 +63,7 @@ public class AquaGui extends JFrame implements Runnable, Observer {
 				while (tankModel.getFishCounter() > size) {
 					String fishId = "fish" + (++size) + "@" + tankModel.getId();
 					JMenuItem fishMenuItem = new JMenuItem(fishId);
-					fishMenuItem.addActionListener(new NotImplementedYetController(AquaGui.this));
+					fishMenuItem.addActionListener(new ToggleController(tankModel, fishId));
 					fishMenuItems.add(fishMenuItem);
 					searchMenu.add(fishMenuItem);
 				}
