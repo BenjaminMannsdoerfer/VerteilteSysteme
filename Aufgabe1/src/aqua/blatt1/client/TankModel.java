@@ -1,7 +1,6 @@
 package aqua.blatt1.client;
 
 import java.net.InetSocketAddress;
-import java.sql.Ref;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -9,7 +8,6 @@ import java.util.concurrent.TimeUnit;
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
 import aqua.blatt1.common.msgtypes.SnapshotToken;
-import com.sun.source.tree.MemberReferenceTree;
 
 public class TankModel extends Observable implements Iterable<FishModel> {
 
@@ -37,7 +35,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 
     private enum ReferenceMode {HERE, LEFT, RIGHT}
 
-    private final Map<FishModel, ReferenceMode> referenceFishies;
+    private final Map<String, ReferenceMode> referenceFishies;
 
     public TankModel(ClientCommunicator.ClientForwarder forwarder) {
         this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
@@ -75,16 +73,20 @@ public class TankModel extends Observable implements Iterable<FishModel> {
                     rand.nextBoolean() ? Direction.LEFT : Direction.RIGHT);
 
             fishies.add(fish);
-            referenceFishies.put(fish, ReferenceMode.HERE);
+            referenceFishies.put(fish.getId(), ReferenceMode.HERE);
+            System.out.println("new fish HERE");
         }
     }
 
     synchronized void receiveFish(FishModel fish) {
         fish.setToStart();
         fishies.add(fish);
-        // Befindet sich ein Kanal im Aufzeichnungsmodus, so müssen auf diesem Kanal
-        // ankommende Fische dem lokalen Zustand hinzugefügt werden. Passen Sie hierfür
-        // die Methode TankModel.receiveFish() entsprechend an.
+        if (referenceFishies.containsKey(fish.getId())) {
+            referenceFishies.replace(fish.getId(), ReferenceMode.HERE);
+        } else {
+            referenceFishies.put(fish.getId(), ReferenceMode.HERE);
+        }
+        System.out.println("receive fish");
         switch (mode) {
             case IDLE:
                 break;
@@ -100,7 +102,6 @@ public class TankModel extends Observable implements Iterable<FishModel> {
                 arrivingFish++;
                 break;
         }
-        referenceFishies.put(fish, ReferenceMode.HERE);
     }
 
     public String getId() {
@@ -133,12 +134,10 @@ public class TankModel extends Observable implements Iterable<FishModel> {
                             break;
                         case RIGHT:
                             if (fish.getDirection() == Direction.RIGHT)
-                                referenceFishies.put(fish, ReferenceMode.RIGHT);
                                 arrivingFish--;
                             break;
                         case LEFT:
                             if (fish.getDirection() == Direction.LEFT)
-                                referenceFishies.put(fish, ReferenceMode.LEFT);
                                 arrivingFish--;
                             break;
                         case BOTH:
@@ -146,6 +145,13 @@ public class TankModel extends Observable implements Iterable<FishModel> {
                             break;
                     }
                     forwarder.handOff(fish, this);
+                    if (fish.getDirection() == Direction.LEFT) {
+                        referenceFishies.replace(fish.getId(), ReferenceMode.LEFT);
+                        System.out.println("update fish left");
+                    } else if (fish.getDirection() == Direction.RIGHT) {
+                        referenceFishies.replace(fish.getId(), ReferenceMode.RIGHT);
+                        System.out.println("update fish right");
+                    }
                 }
             }
             if (fish.disappears())
@@ -257,26 +263,23 @@ public class TankModel extends Observable implements Iterable<FishModel> {
     }
 
     public void locateFishGlobally(String fishId) {
-        for (var fish : referenceFishies.entrySet()) {
-            if (fish.getKey().getId().equals(fishId)) {
-                switch (fish.getValue()) {
-                    case HERE:
-                        locateFishLocally(fish.getKey());
-                        break;
-                    case LEFT:
-                        forwarder.sendLocationRequest(getNeighborAddressLeft(), fishId);
-                        break;
-                    case RIGHT:
-                        forwarder.sendLocationRequest(getNeighborAddressRight(), fishId);
-                        break;
-                }
+        if(referenceFishies.containsKey(fishId)) {
+            ReferenceMode referenceMode = referenceFishies.get(fishId);
+            if (referenceMode == ReferenceMode.HERE) {
+                locateFishLocally(fishId);
+            } else if (referenceMode == ReferenceMode.LEFT) {
+                forwarder.sendLocationRequest(getNeighborAddressLeft(), fishId);
+            } else {
+                forwarder.sendLocationRequest(getNeighborAddressRight(), fishId);
             }
         }
     }
 
-    private void locateFishLocally(FishModel fishModel) {
-        if (fishies.contains(fishModel)) {
-            fishModel.toggle();
+    private void locateFishLocally(String fishId) {
+        for (FishModel fish : fishies) {
+            if (fish.getId().equals(fishId)) {
+                fish.toggle();
+            }
         }
     }
 }

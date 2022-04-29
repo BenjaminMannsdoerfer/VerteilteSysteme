@@ -91,9 +91,10 @@ public class ClientCommunicator {
 					tankModel.receiveSnapshotToken((SnapshotToken) msg.getPayload());
 				}
 
-				if (msg.getPayload() instanceof LocationRequest) {
-					tankModel.locateFishGlobally((String) msg.getPayload());
+				if (msg.getPayload() instanceof  LocationRequest) {
+					tankModel.locateFishGlobally((((LocationRequest) msg.getPayload()).getFishId()));
 				}
+
 
 
 			}

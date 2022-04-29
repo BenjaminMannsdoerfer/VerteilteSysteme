@@ -1,7 +1,5 @@
 package aqua.blatt1.client;
 
-import aqua.blatt1.common.FishModel;
-
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
