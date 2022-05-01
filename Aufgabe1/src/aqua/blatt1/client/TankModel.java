@@ -30,10 +30,12 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	private boolean initiator = false;
 	private int snapshot;
 	private boolean capture = false;
+	private final Map<String, InetSocketAddress> homeAgent;
 
 	public TankModel(ClientCommunicator.ClientForwarder forwarder) {
 		this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
 		this.forwarder = forwarder;
+		this.homeAgent = new HashMap<>();
 	}
 
 	public InetSocketAddress getNeighborAddressLeft() {
@@ -66,15 +68,18 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 					rand.nextBoolean() ? Direction.LEFT : Direction.RIGHT);
 
 			fishies.add(fish);
+			homeAgent.put(fish.getId(), null);
 		}
 	}
 
 	synchronized void receiveFish(FishModel fish) {
 		fish.setToStart();
 		fishies.add(fish);
-		// Befindet sich ein Kanal im Aufzeichnungsmodus, so müssen auf diesem Kanal
-		// ankommende Fische dem lokalen Zustand hinzugefügt werden. Passen Sie hierfür
-		// die Methode TankModel.receiveFish() entsprechend an.
+		if (homeAgent.containsKey(fish.getId())) {
+			homeAgent.replace(fish.getId(), null);
+		} else {
+			forwarder.sendNameResolutionRequest(fish.getTankId(), fish.getId());
+		}
 		switch (mode) {
 			case IDLE:
 				break;
@@ -90,6 +95,32 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 				arrivingFish++;
 				break;
 		}
+	}
+
+	public synchronized void locateFishGlobally(String fishId) {
+		if (homeAgent.containsKey(fishId)) {
+			if (homeAgent.get(fishId) == null) {
+				locateFishLocally(fishId);
+			} else {
+				forwarder.sendLocationRequest(homeAgent.get(fishId), fishId);
+			}
+		}
+	}
+
+	public synchronized void locateFishLocally(String fishId) {
+		for (FishModel fish : fishies) {
+			if (fish.getId().equals(fishId)) {
+				fish.toggle();
+			}
+		}
+	}
+
+	public synchronized void receiveNameResolutionResponse(InetSocketAddress tankAddress, String requestId) {
+		forwarder.sendLocationUpdate(tankAddress, requestId);
+	}
+
+	public synchronized void receiveLocationUpdate(String fishId, InetSocketAddress address) {
+		homeAgent.put(fishId, address);
 	}
 
 	public String getId() {
@@ -210,10 +241,6 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 				}
 			}
 		}
-
-		// speichere den lokalen Zustand;
-		// starte Aufzeichnungsmodus für alle Eingangskanäle;
-		// sende Markierungen in alle Ausgangskanäle.
 	}
 
 	private void localSnapshot() {

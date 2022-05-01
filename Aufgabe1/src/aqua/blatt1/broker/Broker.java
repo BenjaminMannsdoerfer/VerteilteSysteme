@@ -51,6 +51,8 @@ public class Broker {
                 deregister(sender);
             } else if (payload instanceof HandoffRequest) {
                 handoffFish(((HandoffRequest) payload), sender);
+            } else if (payload instanceof NameResolutionRequest) {
+                sendNameResolutionResponse(((NameResolutionRequest) payload), sender);
             }
         }
     }
@@ -142,5 +144,14 @@ public class Broker {
         endpoint.send(neighbor, handoffRequest);
         lock.readLock().unlock();
         System.out.println("Fish entered");
+    }
+
+    private synchronized void sendNameResolutionResponse(NameResolutionRequest nameResolutionRequest, InetSocketAddress sender) {
+        ReadWriteLock lock = new ReentrantReadWriteLock();
+        lock.readLock().lock();
+        int tankIndex = clientCollection.indexOf(nameResolutionRequest.getTankId());
+        InetSocketAddress tankAddress = clientCollection.getClient(tankIndex);
+        endpoint.send(sender, new NameResolutionResponse(tankAddress, nameResolutionRequest.getRequestId()));
+        lock.readLock().unlock();
     }
 }

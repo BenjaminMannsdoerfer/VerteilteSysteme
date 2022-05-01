@@ -49,9 +49,17 @@ public class ClientCommunicator {
 			endpoint.send(address, token);
 		}
 
-		// Die Klassen
-		// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
-		// den SnapshotMarker senden bzw. empfangen können.
+		public void sendNameResolutionRequest(String tankId, String requestId) {
+			endpoint.send(broker, new NameResolutionRequest(tankId, requestId));
+		}
+
+		public void sendLocationRequest(InetSocketAddress neighbor, String fishId) {
+			endpoint.send(neighbor, new LocationRequest(fishId));
+		}
+
+		public void sendLocationUpdate(InetSocketAddress homeTank, String fishId) {
+			endpoint.send(homeTank, new LocationUpdate(fishId, homeTank));
+		}
 
 		public void sendSnapshotMarker(InetSocketAddress address) {
 			endpoint.send(address, new SnapshotMarker());
@@ -83,13 +91,7 @@ public class ClientCommunicator {
 				if (msg.getPayload() instanceof Token)
 					tankModel.receiveToken();
 
-				// Die Klassen
-				// ClientForwarder und ClientReceiver müssen so angepasst werden, dass sie
-				// den SnapshotMarker senden bzw. empfangen können.
-
 				if (msg.getPayload() instanceof SnapshotMarker) {
-					// TODO Empfängt ein Klient einen SnapshotMarker, dann agiert er entsprechend dem
-					// TODO Algorithmus von Lamport zum Ermitteln seinen lokalen Schnappschusses.
 					tankModel.receiveSnapshotMarker(msg.getSender());
 				}
 
@@ -97,7 +99,17 @@ public class ClientCommunicator {
 					tankModel.receiveSnapshotToken((SnapshotToken) msg.getPayload());
 				}
 
+				if (msg.getPayload() instanceof NameResolutionResponse) {
+					tankModel.receiveNameResolutionResponse(((NameResolutionResponse) msg.getPayload()).getAddress(), ((NameResolutionResponse) msg.getPayload()).getRequestId());
+				}
 
+				if (msg.getPayload() instanceof LocationUpdate) {
+					tankModel.receiveLocationUpdate(((LocationUpdate) msg.getPayload()).getFishId(), msg.getSender());
+				}
+
+				if (msg.getPayload() instanceof LocationRequest) {
+					tankModel.locateFishLocally(((LocationRequest) msg.getPayload()).getFishId());
+				}
 			}
 			System.out.println("Receiver stopped.");
 		}
