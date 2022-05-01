@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class LocationRequest implements Serializable {
 
-    private String fishId;
+    private final String fishId;
     public LocationRequest(String fishId) {
         this.fishId = fishId;
     }
