@@ -57,8 +57,8 @@ public class ClientCommunicator {
 			endpoint.send(neighbor, new LocationRequest(fishId));
 		}
 
-		public void sendLocationUpdate(InetSocketAddress homeTank, String fishId) {
-			endpoint.send(homeTank, new LocationUpdate(fishId, homeTank));
+		public void sendLocationUpdate(InetSocketAddress addressHomeTank, String fishId) {
+			endpoint.send(addressHomeTank, new LocationUpdate(fishId, addressHomeTank));
 		}
 
 		public void sendSnapshotMarker(InetSocketAddress address) {
@@ -99,6 +99,7 @@ public class ClientCommunicator {
 					tankModel.receiveSnapshotToken((SnapshotToken) msg.getPayload());
 				}
 
+				// Antwort vom Broker
 				if (msg.getPayload() instanceof NameResolutionResponse) {
 					tankModel.receiveNameResolutionResponse(((NameResolutionResponse) msg.getPayload()).getAddress(), ((NameResolutionResponse) msg.getPayload()).getRequestId());
 				}

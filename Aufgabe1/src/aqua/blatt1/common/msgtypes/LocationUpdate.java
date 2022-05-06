@@ -8,8 +8,8 @@ public class LocationUpdate implements Serializable {
     private final InetSocketAddress address;
 
     public LocationUpdate(String fishId, InetSocketAddress address) {
-        this.address = address;
         this.fishId = fishId;
+        this.address = address;
     }
 
     public InetSocketAddress getAddress() {

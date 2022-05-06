@@ -115,6 +115,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 		}
 	}
 
+	// Nach der Antwort vom Broker wird das Heimataquarium über den neuen Standort des Fisches informiert
 	public synchronized void receiveNameResolutionResponse(InetSocketAddress tankAddress, String requestId) {
 		forwarder.sendLocationUpdate(tankAddress, requestId);
 	}
