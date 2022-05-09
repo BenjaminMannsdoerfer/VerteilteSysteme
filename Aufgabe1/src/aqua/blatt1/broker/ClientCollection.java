@@ -1,5 +1,6 @@
 package aqua.blatt1.broker;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,10 +13,12 @@ public class ClientCollection<T> {
 	private class Client {
 		final String id;
 		final T client;
+		final Timestamp timeStamp;
 
-		Client(String id, T client) {
+		Client(String id, T client, Timestamp timeStamp) {
 			this.id = id;
 			this.client = client;
+			this.timeStamp = timeStamp;
 		}
 	}
 
@@ -25,8 +28,8 @@ public class ClientCollection<T> {
 		clients = new ArrayList<Client>();
 	}
 
-	public ClientCollection<T> add(String id, T client) {
-		clients.add(new Client(id, client));
+	public ClientCollection<T> add(String id, T client, Timestamp timeStamp) {
+		clients.add(new Client(id, client, timeStamp));
 		return this;
 	}
 
@@ -64,5 +67,22 @@ public class ClientCollection<T> {
 	public T getRightNeighorOf(int index) {
 		return index < clients.size() - 1 ? clients.get(index + 1).client : clients.get(0).client;
 	}
+
+	public void setTimeStamp(int index, Timestamp timestamp) {
+		Client oldClient = clients.get(index);
+		Client newClient = new Client(oldClient.id, oldClient.client, timestamp);
+		clients.set(index, newClient);
+		//clients.get(index).timeStamp.setTime(timestamp);
+	}
+
+	public Long getTimeStamp(int index) {
+		return clients.get(index).timeStamp.getTime();
+	}
+
+	public String getId(int index) {
+		return clients.get(index).id;
+	}
+
+
 
 }

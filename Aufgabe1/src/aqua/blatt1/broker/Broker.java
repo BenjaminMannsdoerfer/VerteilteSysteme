@@ -10,10 +10,11 @@ import messaging.Message;
 import javax.swing.*;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executor;
+import java.sql.Timestamp;
+import java.util.TimerTask;
+import java.util.Timer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -23,6 +24,7 @@ public class Broker {
     private final ClientCollection<InetSocketAddress> clientCollection;
     private static final int NUM_THREADS = 5;
     private final ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+    private boolean isIncluded = false;
 
     private Broker() {
         this.endpoint = new Endpoint(Properties.PORT);
@@ -81,34 +83,76 @@ public class Broker {
     }
 
     private synchronized void register(InetSocketAddress address) {
-        ReadWriteLock lock = new ReentrantReadWriteLock();
-        lock.writeLock().lock();
-        String id = "tank" + clientCollection.size();
-        lock.writeLock().unlock();
-        lock.writeLock().lock();
-        clientCollection.add(id, address);
-        lock.writeLock().unlock();
-        lock.readLock().lock();
-        InetSocketAddress neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
-        InetSocketAddress neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
-        System.out.println(id);
-        System.out.println(neighborLeft);
-        System.out.println(neighborRight);
-        if(clientCollection.size() == 1) {
-            endpoint.send(address, new NeighborUpdate(address, address));
-            endpoint.send(address, new Token());
-        } else {
-            endpoint.send(address, new NeighborUpdate(neighborLeft, neighborRight));
-            endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getLeftNeighorOf(clientCollection.indexOf(neighborLeft)), address));
-            endpoint.send(neighborRight, new NeighborUpdate(address, clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborRight))));
+        /*Timer timer = new Timer();
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                for (int i = 0; i < clientCollection.size(); i++) {
+                    if (System.currentTimeMillis() - 10000 > clientCollection.getTimeStamp(i)) {
+                        System.out.println("TEST 1");
+                        deregister(clientCollection.getClient(i));
+                        System.out.println(clientCollection.size());
+                    }
+                    System.out.println("TEST 2");
+                    //clientCollection.setTimeStamp(i, new Timestamp(System.currentTimeMillis()).getTime() + 10000);
+
+                    isIncluded = true;
+
+                }
+            }
+        };
+        long delay = 500L;
+        timer.schedule(task, 0);*/
+        for (int i = 0; i < clientCollection.size(); i++) {
+            if (System.currentTimeMillis() - 10000 > clientCollection.getTimeStamp(i)) {
+                System.out.println("TEST 1");
+                deregister(clientCollection.getClient(i));
+                System.out.println(clientCollection.size());
+            }
+            System.out.println("TEST 2");
+            //clientCollection.setTimeStamp(i, new Timestamp(System.currentTimeMillis()).getTime() + 10000);
+
+            isIncluded = true;
+
         }
-        System.out.println("register " + id);
-        // Add fish per register
-        endpoint.send(address, new RegisterResponse(id));
-        lock.readLock().unlock();
+        System.out.println(clientCollection.indexOf(address));
+        if (clientCollection.indexOf(address) < 0) {
+            Timestamp currentTime;
+            ReadWriteLock lock = new ReentrantReadWriteLock();
+            lock.writeLock().lock();
+            String id = "tank" + clientCollection.size();
+            lock.writeLock().unlock();
+            lock.writeLock().lock();
+            currentTime = new Timestamp(System.currentTimeMillis());
+            clientCollection.add(id, address, currentTime);
+            lock.writeLock().unlock();
+            lock.readLock().lock();
+            InetSocketAddress neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
+            InetSocketAddress neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
+            //System.out.println(id);
+            //System.out.println(neighborLeft);
+            //System.out.println(neighborRight);
+            if (clientCollection.size() == 1) {
+                endpoint.send(address, new NeighborUpdate(address, address));
+                endpoint.send(address, new Token());
+            } else {
+                endpoint.send(address, new NeighborUpdate(neighborLeft, neighborRight));
+                endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getLeftNeighorOf(clientCollection.indexOf(neighborLeft)), address));
+                endpoint.send(neighborRight, new NeighborUpdate(address, clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborRight))));
+            }
+            System.out.println("register " + id);
+            // Add fish per register
+            endpoint.send(address, new RegisterResponse(id));
+            lock.readLock().unlock();
 
 
+        } else {
+            clientCollection.setTimeStamp(clientCollection.indexOf(address), new Timestamp(System.currentTimeMillis()));
+            endpoint.send(address, new RegisterResponse(clientCollection.getId(clientCollection.indexOf(address))));
+
+        }
     }
+
 
     private synchronized void deregister(InetSocketAddress address) {
         ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -117,7 +161,7 @@ public class Broker {
         InetSocketAddress neighborLeft;
         InetSocketAddress neighborRight;
         // mind. 2 Clients
-        if(clientCollection.size() != 1) {
+        if (clientCollection.size() != 1) {
             neighborLeft = clientCollection.getLeftNeighorOf(clientCollection.indexOf(address));
             neighborRight = clientCollection.getRightNeighorOf(clientCollection.indexOf(address));
             endpoint.send(neighborLeft, new NeighborUpdate(clientCollection.getRightNeighorOf(clientCollection.indexOf(neighborLeft)), neighborRight));

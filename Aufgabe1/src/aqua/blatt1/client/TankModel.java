@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
+import aqua.blatt1.common.msgtypes.RegisterResponse;
 import aqua.blatt1.common.msgtypes.SnapshotToken;
 
 public class TankModel extends Observable implements Iterable<FishModel> {
@@ -32,6 +33,8 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	private boolean capture = false;
 	private final Map<String, InetSocketAddress> homeAgent;
 
+	private boolean firstRegistration = true;
+
 	public TankModel(ClientCommunicator.ClientForwarder forwarder) {
 		this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
 		this.forwarder = forwarder;
@@ -54,9 +57,20 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 		this.addressRight = addressRight;
 	}
 
-	synchronized void onRegistration(String id) {
+	synchronized void onRegistration(String id, Integer leaseTime) {
+		Timer timer = new Timer();
 		this.id = id;
-		newFish(WIDTH - FishModel.getXSize(), rand.nextInt(HEIGHT - FishModel.getYSize()));
+		if (firstRegistration) {
+			newFish(WIDTH - FishModel.getXSize(), rand.nextInt(HEIGHT - FishModel.getYSize()));
+			firstRegistration = false;
+		}
+		TimerTask task = new TimerTask() {
+			@Override
+			public void run() {
+				forwarder.register();
+			}
+		};
+		timer.schedule(task, leaseTime);
 	}
 
 	public synchronized void newFish(int x, int y) {
