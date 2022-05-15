@@ -11,6 +11,7 @@ import javax.swing.*;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.sql.Timestamp;
+import java.util.Date;
 import java.util.TimerTask;
 import java.util.Timer;
 import java.util.concurrent.ExecutorService;
@@ -24,11 +25,33 @@ public class Broker {
     private final ClientCollection<InetSocketAddress> clientCollection;
     private static final int NUM_THREADS = 5;
     private final ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
-    private boolean isIncluded = false;
+    private final long LEASE_TIME = 5000L;
 
     private Broker() {
         this.endpoint = new Endpoint(Properties.PORT);
         this.clientCollection = new ClientCollection<>();
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                for (int i = 0; i < clientCollection.size(); i++) {
+                    //long actualTime = new Timestamp(new Date().getTime()).getTime();
+                    long actualTime = new Date().getTime();
+                    System.out.println(clientCollection.getTimeStamp(i) - actualTime);
+                    System.out.println(LEASE_TIME);
+
+                    //if (actualTime - LEASE_TIME > clientCollection.getTimeStamp(i)) {
+                    System.out.println("TEST: " + (actualTime - clientCollection.getTimeStamp(i)));
+                    if ((actualTime - clientCollection.getTimeStamp(i)) > 5000) {
+                        System.out.println("TEST 1");
+                        deregister(clientCollection.getClient(i));
+                        endpoint.send(clientCollection.getClient(i), new LeasingRunOut());
+                        System.out.println(clientCollection.size());
+                    }
+                    System.out.println("TEST 2");
+                }
+            }
+        }, 0, 3*1000);
     }
 
     public static void main(String[] args) {
@@ -70,6 +93,8 @@ public class Broker {
 
     // dispatcher
     public void broker() {
+
+
         //Thread thread = new Thread(new StopTask());
         //thread.start();
         while (running) {
@@ -83,47 +108,18 @@ public class Broker {
     }
 
     private synchronized void register(InetSocketAddress address) {
-        /*Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                for (int i = 0; i < clientCollection.size(); i++) {
-                    if (System.currentTimeMillis() - 10000 > clientCollection.getTimeStamp(i)) {
-                        System.out.println("TEST 1");
-                        deregister(clientCollection.getClient(i));
-                        System.out.println(clientCollection.size());
-                    }
-                    System.out.println("TEST 2");
-                    //clientCollection.setTimeStamp(i, new Timestamp(System.currentTimeMillis()).getTime() + 10000);
-
-                    isIncluded = true;
-
-                }
-            }
-        };
-        long delay = 500L;
-        timer.schedule(task, 0);*/
-        for (int i = 0; i < clientCollection.size(); i++) {
-            if (System.currentTimeMillis() - 10000 > clientCollection.getTimeStamp(i)) {
-                System.out.println("TEST 1");
-                deregister(clientCollection.getClient(i));
-                System.out.println(clientCollection.size());
-            }
-            System.out.println("TEST 2");
-            //clientCollection.setTimeStamp(i, new Timestamp(System.currentTimeMillis()).getTime() + 10000);
-
-            isIncluded = true;
-
-        }
+        Timestamp currentTime = new Timestamp(new Date().getTime());
         System.out.println(clientCollection.indexOf(address));
-        if (clientCollection.indexOf(address) < 0) {
-            Timestamp currentTime;
+        if (clientCollection.indexOf(address) != -1) {
+            System.out.println("Broker: Client " + clientCollection.getId(clientCollection.indexOf(address)) + " reregistered");
+            clientCollection.setTimeStamp(clientCollection.indexOf(address), currentTime.getTime());
+            endpoint.send(address, new RegisterResponse(clientCollection.getId(clientCollection.indexOf(address)), LEASE_TIME));
+        } else {
             ReadWriteLock lock = new ReentrantReadWriteLock();
             lock.writeLock().lock();
             String id = "tank" + clientCollection.size();
             lock.writeLock().unlock();
             lock.writeLock().lock();
-            currentTime = new Timestamp(System.currentTimeMillis());
             clientCollection.add(id, address, currentTime);
             lock.writeLock().unlock();
             lock.readLock().lock();
@@ -142,14 +138,8 @@ public class Broker {
             }
             System.out.println("register " + id);
             // Add fish per register
-            endpoint.send(address, new RegisterResponse(id));
+            endpoint.send(address, new RegisterResponse(id, LEASE_TIME));
             lock.readLock().unlock();
-
-
-        } else {
-            clientCollection.setTimeStamp(clientCollection.indexOf(address), new Timestamp(System.currentTimeMillis()));
-            endpoint.send(address, new RegisterResponse(clientCollection.getId(clientCollection.indexOf(address))));
-
         }
     }
 

@@ -115,6 +115,10 @@ public class ClientCommunicator {
 				if (msg.getPayload() instanceof LocationRequest) {
 					tankModel.locateFishLocally(((LocationRequest) msg.getPayload()).getFishId());
 				}
+
+				if (msg.getPayload() instanceof LeasingRunOut) {
+					tankModel.leasingRunOut();
+				}
 			}
 			System.out.println("Receiver stopped.");
 		}

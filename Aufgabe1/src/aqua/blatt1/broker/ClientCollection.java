@@ -68,10 +68,11 @@ public class ClientCollection<T> {
 		return index < clients.size() - 1 ? clients.get(index + 1).client : clients.get(0).client;
 	}
 
-	public void setTimeStamp(int index, Timestamp timestamp) {
-		Client oldClient = clients.get(index);
+	public void setTimeStamp(int index, long timestamp) {
+		/*Client oldClient = clients.get(index);
 		Client newClient = new Client(oldClient.id, oldClient.client, timestamp);
-		clients.set(index, newClient);
+		clients.set(index, newClient);*/
+		clients.get(index).timeStamp.setTime(timestamp);
 		//clients.get(index).timeStamp.setTime(timestamp);
 	}
 
