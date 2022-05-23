@@ -7,9 +7,12 @@ import blatt2.broker.PoisonPill;
 import messaging.Endpoint;
 import messaging.Message;
 
+import javax.crypto.NoSuchPaddingException;
 import javax.swing.*;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.TimerTask;
@@ -21,14 +24,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Broker {
     private volatile boolean running = true;
-    private final Endpoint endpoint;
+    private final SecureEndpoint endpoint;
     private final ClientCollection<InetSocketAddress> clientCollection;
     private static final int NUM_THREADS = 5;
     private final ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
     private final long LEASE_TIME = 5000L;
 
-    private Broker() {
-        this.endpoint = new Endpoint(Properties.PORT);
+    private Broker() throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
+        this.endpoint = new SecureEndpoint(Properties.PORT);
         this.clientCollection = new ClientCollection<>();
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -54,7 +57,7 @@ public class Broker {
         }, 0, 3*1000);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
         Broker broker = new Broker();
         broker.broker();
     }
