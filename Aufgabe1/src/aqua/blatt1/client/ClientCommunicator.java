@@ -31,7 +31,6 @@ public class ClientCommunicator {
 		}
 
 		public void register() {
-			System.out.println("TEST");
 			endpoint.send(broker, new RegisterRequest());
 		}
 
@@ -86,6 +85,10 @@ public class ClientCommunicator {
 		public void run() {
 			while (!isInterrupted()) {
 				Message msg = endpoint.blockingReceive();
+
+				if (msg == null) {
+					continue;
+				}
 
 				if (msg.getPayload() instanceof RegisterResponse) {
 					tankModel.onRegistration(((RegisterResponse) msg.getPayload()).getId(), ((RegisterResponse) msg.getPayload()).getLeaseTime());

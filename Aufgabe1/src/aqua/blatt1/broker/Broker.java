@@ -4,7 +4,6 @@ import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.Properties;
 import aqua.blatt1.common.msgtypes.*;
 import blatt2.broker.PoisonPill;
-import messaging.Endpoint;
 import messaging.Message;
 
 import javax.crypto.NoSuchPaddingException;
@@ -46,12 +45,10 @@ public class Broker {
                     //if (actualTime - LEASE_TIME > clientCollection.getTimeStamp(i)) {
                     System.out.println("TEST: " + (actualTime - clientCollection.getTimeStamp(i)));
                     if ((actualTime - clientCollection.getTimeStamp(i)) > 5000) {
-                        System.out.println("TEST 1");
                         deregister(clientCollection.getClient(i));
                         endpoint.send(clientCollection.getClient(i), new LeasingRunOut());
                         System.out.println(clientCollection.size());
                     }
-                    System.out.println("TEST 2");
                 }
             }
         }, 0, 3*1000);
@@ -73,7 +70,9 @@ public class Broker {
 
         @Override
         public void run() {
-            if (payload instanceof RegisterRequest) {
+            if (payload instanceof PoisonPill) {
+                running = false;
+            } else if (payload instanceof RegisterRequest) {
                 register(sender);
             } else if (payload instanceof DeregisterRequest) {
                 deregister(sender);
@@ -100,12 +99,11 @@ public class Broker {
 
         //Thread thread = new Thread(new StopTask());
         //thread.start();
+        Message message;
         while (running) {
-            Message message = endpoint.blockingReceive();
-            if (message.getPayload() instanceof PoisonPill) {
-                running = false;
+            if ((message = endpoint.nonBlockingReceive()) != null) {
+                executor.execute(new BrokerTask(message.getPayload(), message.getSender()));
             }
-            executor.execute(new BrokerTask(message.getPayload(), message.getSender()));
         }
         executor.shutdown();
     }
