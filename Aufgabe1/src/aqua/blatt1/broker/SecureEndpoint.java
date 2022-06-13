@@ -20,7 +20,7 @@ public class SecureEndpoint extends Endpoint {
     private Cipher decrypt;
     private PublicKey publicKey;
     private PrivateKey privateKey;
-    private Map<InetSocketAddress, PublicKey> connectors;
+    private final Map<InetSocketAddress, PublicKey> connectors;
 
     public SecureEndpoint() throws NoSuchAlgorithmException {
         endpoint = new Endpoint();

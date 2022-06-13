@@ -4,12 +4,10 @@ import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Timer;
-import java.util.TimerTask;
 
 import aqua.blatt1.broker.SecureEndpoint;
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.msgtypes.*;
-import messaging.Endpoint;
 import messaging.Message;
 import aqua.blatt1.common.FishModel;
 import aqua.blatt1.common.Properties;
